@@ -1,0 +1,58 @@
+name: Update Live Playlist
+
+on:
+  # Run every 10 minutes
+  schedule:
+    - cron: '*/10 * * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+  # Run on push to main (for testing)
+  push:
+    branches: [main]
+    paths:
+      - 'models.txt'
+
+# Prevent concurrent runs
+concurrency:
+  group: playlist-update
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  update-playlist:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run playlist updater
+        run: python update_playlist.py
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet playlist.m3u && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push updated playlist
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add playlist.m3u
+          git commit -m "🔄 Update playlist — $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
