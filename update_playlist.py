@@ -1,252 +1,265 @@
 import requests
 import time
 import os
+import re
 
 MODELS_FILE = "models.txt"
 PLAYLIST_FILE = "playlist.m3u"
-BASE_CHECK_URL = "https://myhotcams.net/"
-STREAM_SERVERS = [
-    "https://videos.myhotcams.net/d01/",
-    "https://videos.myhotcams.net/d02/",
-    "https://videos.myhotcams.net/d03/",
-    "https://videos.myhotcams.net/d04/",
-    "https://videos.myhotcams.net/d05/",
-    "https://videos.myhotcams.net/d06/",
-    "https://videos.myhotcams.net/d07/",
-    "https://videos.myhotcams.net/d08/",
-    "https://videos.myhotcams.net/d09/",
-    "https://videos.myhotcams.net/d10/",
-]
+
+STREAM_BASE = "https://videos.myhotcams.net/"
+SERVERS = [f"d{str(i).zfill(2)}" for i in range(1, 21)]  # d01 to d20
+EXTENSIONS = [".mp4", ".m3u8"]
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                   "AppleWebKit/537.36 (KHTML, like Gecko) "
                   "Chrome/125.0.0.0 Safari/537.36",
     "Referer": "https://myhotcams.net/",
+    "Origin": "https://myhotcams.net",
     "Accept": "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
     "Connection": "keep-alive",
+    "Range": "bytes=0-1024",  # Request just first 1KB to confirm stream is live
 }
 
-TIMEOUT = 10
+TIMEOUT = 8
 
 
 def load_models(filepath):
-    """Load model names from comma-separated text file."""
     if not os.path.exists(filepath):
         print(f"[ERROR] {filepath} not found!")
         return []
-
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read().strip()
-
     models = [name.strip().lower() for name in content.split(",") if name.strip()]
     print(f"[INFO] Loaded {len(models)} model(s): {models}")
     return models
 
 
-def check_model_page_live(model_name):
+def check_stream_url(url):
     """
-    Check if model's profile page indicates they are live.
-    Returns True if the page exists and suggests the model is online.
+    Try HEAD then GET with Range to confirm stream is accessible and has content.
+    Returns True if stream is live.
     """
-    url = f"{BASE_CHECK_URL}{model_name}"
+    # Try HEAD first
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
-        if resp.status_code == 200:
-            html = resp.text.lower()
-            # Look for indicators that the model is currently live/online
-            live_indicators = [
-                '"online"',
-                '"status":"online"',
-                "is_live",
-                "live_now",
-                "currently live",
-                "streaming now",
-                "player",
-                "video-container",
-                ".mp4",
-                ".m3u8",
-                "hlsurl",
-                "stream_url",
-            ]
-            for indicator in live_indicators:
-                if indicator in html:
-                    return True
-        return False
-    except requests.RequestException as e:
-        print(f"[WARN] Could not check page for {model_name}: {e}")
-        return False
+        resp = requests.head(
+            url,
+            headers={**HEADERS, "Range": None},  # HEAD without range
+            timeout=TIMEOUT,
+            allow_redirects=True,
+        )
+        print(f"  HEAD {url} → {resp.status_code} | CT: {resp.headers.get('Content-Type','?')} | CL: {resp.headers.get('Content-Length','?')}")
+        
+        if resp.status_code in (200, 206):
+            ct = resp.headers.get("Content-Type", "").lower()
+            cl = int(resp.headers.get("Content-Length", 0) or 0)
+            
+            # If content-type is video or content-length > 0, it's live
+            if "video" in ct or "octet" in ct or "mpegurl" in ct or cl > 1000:
+                return True
+    except Exception as e:
+        print(f"  HEAD failed: {e}")
+
+    # Try GET with Range
+    try:
+        resp = requests.get(
+            url,
+            headers=HEADERS,
+            timeout=TIMEOUT,
+            allow_redirects=True,
+            stream=True,
+        )
+        print(f"  GET  {url} → {resp.status_code} | CT: {resp.headers.get('Content-Type','?')} | CL: {resp.headers.get('Content-Length','?')}")
+        
+        if resp.status_code in (200, 206):
+            # Read first chunk
+            chunk = b""
+            for data in resp.iter_content(chunk_size=512):
+                chunk += data
+                if len(chunk) >= 512:
+                    break
+            resp.close()
+            
+            if len(chunk) > 100:
+                print(f"  ✓ Got {len(chunk)} bytes — stream is LIVE")
+                return True
+        resp.close()
+    except Exception as e:
+        print(f"  GET failed: {e}")
+
+    return False
 
 
 def find_live_stream(model_name):
     """
-    Try to find a working live stream URL for a model.
-    Checks multiple server paths and extensions.
-    Returns the working stream URL or None.
+    Check all servers d01-d20 for both .mp4 and .m3u8
+    Returns working URL or None
     """
-    extensions = [".mp4", ".m3u8"]
-
-    # First check if model page suggests they are live
-    page_live = check_model_page_live(model_name)
-    if not page_live:
-        print(f"[SKIP] {model_name} — page does not indicate live status")
-        return None
-
-    # Try each server + extension combination
-    for server in STREAM_SERVERS:
-        for ext in extensions:
-            stream_url = f"{server}{model_name}{ext}"
+    print(f"\n[CHECKING] {model_name}")
+    
+    for server in SERVERS:
+        for ext in EXTENSIONS:
+            url = f"{STREAM_BASE}{server}/{model_name}{ext}"
             try:
                 resp = requests.head(
-                    stream_url,
-                    headers=HEADERS,
+                    url,
+                    headers={
+                        "User-Agent": HEADERS["User-Agent"],
+                        "Referer": HEADERS["Referer"],
+                    },
                     timeout=TIMEOUT,
                     allow_redirects=True,
                 )
+                
+                print(f"  {server}/{model_name}{ext} → {resp.status_code}")
+                
                 if resp.status_code == 200:
-                    content_type = resp.headers.get("Content-Type", "").lower()
-                    content_length = resp.headers.get("Content-Length", "0")
+                    ct = resp.headers.get("Content-Type", "").lower()
+                    cl = int(resp.headers.get("Content-Length", 0) or 0)
+                    print(f"    Content-Type: {ct} | Content-Length: {cl}")
+                    
+                    # Confirm with a GET chunk
+                    if check_stream_url(url):
+                        print(f"  ✅ LIVE: {url}")
+                        return url
 
-                    # Validate it's actually a media stream
-                    valid_types = [
-                        "video/",
-                        "application/vnd.apple.mpegurl",
-                        "application/x-mpegurl",
-                        "application/octet-stream",
-                        "binary/octet-stream",
-                    ]
+                elif resp.status_code == 206:
+                    print(f"  ✅ LIVE (206): {url}")
+                    return url
+                    
+            except requests.exceptions.ConnectionError:
+                print(f"  {server}/{model_name}{ext} → Connection refused")
+            except requests.exceptions.Timeout:
+                print(f"  {server}/{model_name}{ext} → Timeout")
+            except Exception as e:
+                print(f"  {server}/{model_name}{ext} → Error: {e}")
+            
+            time.sleep(0.2)  # Small delay between requests
 
-                    is_valid_type = any(vt in content_type for vt in valid_types)
-                    is_nonzero = int(content_length) > 0 if content_length.isdigit() else True
-
-                    if is_valid_type and is_nonzero:
-                        print(f"[LIVE] {model_name} → {stream_url}")
-                        return stream_url
-
-            except requests.RequestException:
-                continue
-
-    # Also try GET request on first few servers (some servers don't support HEAD)
-    for server in STREAM_SERVERS[:3]:
-        for ext in extensions:
-            stream_url = f"{server}{model_name}{ext}"
-            try:
-                resp = requests.get(
-                    stream_url,
-                    headers=HEADERS,
-                    timeout=TIMEOUT,
-                    stream=True,
-                    allow_redirects=True,
-                )
-                if resp.status_code == 200:
-                    # Read a small chunk to verify it's real content
-                    chunk = resp.raw.read(1024)
-                    resp.close()
-                    if chunk and len(chunk) > 100:
-                        print(f"[LIVE] {model_name} → {stream_url}")
-                        return stream_url
-                resp.close()
-            except requests.RequestException:
-                continue
-
-    print(f"[OFFLINE] {model_name} — no live stream found")
+    print(f"  ❌ No live stream found for {model_name}")
     return None
 
 
-def scrape_stream_from_page(model_name):
+def scrape_from_model_page(model_name):
     """
-    Alternative: scrape the model's page directly for stream URLs.
+    Scrape the model page directly for stream URL.
     """
-    url = f"{BASE_CHECK_URL}{model_name}"
+    url = f"https://myhotcams.net/{model_name}"
+    print(f"  Scraping page: {url}")
+    
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        resp = requests.get(
+            url,
+            headers={
+                "User-Agent": HEADERS["User-Agent"],
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+            },
+            timeout=10,
+        )
+        print(f"  Page status: {resp.status_code}")
+        
         if resp.status_code != 200:
             return None
-
-        import re
+        
         html = resp.text
-
-        # Look for direct stream URLs in page source
+        
+        # Debug: print snippet around "video" keyword
+        idx = html.lower().find("video")
+        if idx > 0:
+            print(f"  Page snippet near 'video': ...{html[max(0,idx-50):idx+200]}...")
+        
+        # Search for stream URLs in page
         patterns = [
-            r'(https?://videos\.myhotcams\.net/[^"\'\s]+\.mp4)',
-            r'(https?://videos\.myhotcams\.net/[^"\'\s]+\.m3u8)',
-            r'source["\s:]+["\']?(https?://[^"\'\s]+\.mp4)',
-            r'hlsUrl["\s:]+["\']?(https?://[^"\'\s]+)',
-            r'streamUrl["\s:]+["\']?(https?://[^"\'\s]+)',
-            r'file["\s:]+["\']?(https?://[^"\'\s]+\.mp4)',
+            r'https?://videos\.myhotcams\.net/[^\s\'"<>]+\.mp4',
+            r'https?://videos\.myhotcams\.net/[^\s\'"<>]+\.m3u8',
+            r'"url"\s*:\s*"(https?://[^\s\'"<>]+\.mp4)"',
+            r'"url"\s*:\s*"(https?://[^\s\'"<>]+\.m3u8)"',
+            r'src\s*[=:]\s*["\']?(https?://videos\.myhotcams\.net/[^\s\'"<>]+)',
+            r'file\s*[=:]\s*["\']?(https?://videos\.myhotcams\.net/[^\s\'"<>]+)',
+            r'source\s*[=:]\s*["\']?(https?://videos\.myhotcams\.net/[^\s\'"<>]+)',
         ]
-
+        
         for pattern in patterns:
-            matches = re.findall(pattern, html)
+            matches = re.findall(pattern, html, re.IGNORECASE)
             if matches:
                 stream_url = matches[0]
-                print(f"[SCRAPED] {model_name} → {stream_url}")
+                print(f"  Found URL in page: {stream_url}")
                 return stream_url
-
+        
+        # Also search for JSON-like stream data
+        json_patterns = [
+            r'"stream_url"\s*:\s*"([^"]+)"',
+            r'"hls_url"\s*:\s*"([^"]+)"',
+            r'"hlsUrl"\s*:\s*"([^"]+)"',
+            r'"mp4_url"\s*:\s*"([^"]+)"',
+            r'"streamUrl"\s*:\s*"([^"]+)"',
+            r'"live_url"\s*:\s*"([^"]+)"',
+            r'"video_url"\s*:\s*"([^"]+)"',
+        ]
+        
+        for pattern in json_patterns:
+            matches = re.findall(pattern, html, re.IGNORECASE)
+            if matches:
+                stream_url = matches[0]
+                print(f"  Found JSON URL in page: {stream_url}")
+                return stream_url
+                
+        print(f"  No stream URL found in page source")
         return None
+        
     except Exception as e:
-        print(f"[WARN] Scrape failed for {model_name}: {e}")
+        print(f"  Page scrape error: {e}")
         return None
 
 
-def generate_playlist(live_streams):
-    """Generate M3U playlist content."""
+def generate_m3u(live_streams):
     lines = ["#EXTM3U"]
-    lines.append(f"# Updated: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
-    lines.append(f"# Live models: {len(live_streams)}")
-    lines.append("")
+    lines.append(f"# Last updated: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
+    lines.append(f"# Live: {len(live_streams)} model(s)")
 
-    for model_name, stream_url in live_streams.items():
-        lines.append(f'#EXTINF:-1 tvg-name="{model_name}",{model_name}')
-        lines.append(stream_url)
-        lines.append("")
+    for model, url in live_streams.items():
+        lines.append(f'#EXTINF:-1 tvg-id="{model}" tvg-name="{model}" group-title="Live",{model}')
+        lines.append(url)
 
     return "\n".join(lines)
 
 
 def main():
     print("=" * 60)
-    print(f"Playlist Updater — {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
+    print(f"  Live Playlist Updater")
+    print(f"  {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
     print("=" * 60)
 
     models = load_models(MODELS_FILE)
     if not models:
-        print("[ERROR] No models found. Exiting.")
-        # Write empty playlist
-        with open(PLAYLIST_FILE, "w", encoding="utf-8") as f:
-            f.write("#EXTM3U\n# No models configured\n")
         return
 
     live_streams = {}
 
     for model_name in models:
-        print(f"\n[CHECK] Checking {model_name}...")
+        # Method 1: Scrape page first (fastest if it works)
+        stream_url = scrape_from_model_page(model_name)
 
-        # Method 1: Try scraping stream URL directly from model page
-        stream_url = scrape_stream_from_page(model_name)
-
-        # Method 2: Try brute-force checking known server paths
+        # Method 2: Brute force all servers
         if not stream_url:
             stream_url = find_live_stream(model_name)
 
         if stream_url:
             live_streams[model_name] = stream_url
 
-        # Small delay to be respectful
         time.sleep(1)
 
-    print(f"\n{'=' * 60}")
-    print(f"Results: {len(live_streams)}/{len(models)} models are LIVE")
-    print("=" * 60)
-
-    # Generate and save playlist
-    playlist_content = generate_playlist(live_streams)
-
+    # Write playlist
+    playlist = generate_m3u(live_streams)
     with open(PLAYLIST_FILE, "w", encoding="utf-8") as f:
-        f.write(playlist_content)
+        f.write(playlist)
 
-    print(f"\n[SAVED] Playlist written to {PLAYLIST_FILE}")
-    print(f"[CONTENT]\n{playlist_content}")
+    print("\n" + "=" * 60)
+    print(f"  Done! {len(live_streams)}/{len(models)} live")
+    print("=" * 60)
+    print(f"\n[PLAYLIST]\n{playlist}")
 
 
 if __name__ == "__main__":
