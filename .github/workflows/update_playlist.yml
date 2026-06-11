@@ -32,22 +32,28 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Chrome
-        uses: browser-actions/setup-chrome@latest
-        with:
-          chrome-version: stable
+      - name: Install Chrome manually
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip curl
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          google-chrome --version
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           pip install requests selenium webdriver-manager
 
       - name: Run playlist updater
         run: python update_playlist.py
+        timeout-minutes: 25
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add playlist.m3u
-          git diff --cached --quiet && echo "No changes" || (git commit -m "🔄 Update playlist — $(date -u '+%Y-%m-%d %H:%M UTC')" && git push)
+          git diff --cached --quiet && echo "No changes to commit" || (git commit -m "🔄 Update playlist — $(date -u '+%Y-%m-%d %H:%M UTC')" && git push)
