@@ -11,6 +11,7 @@ import subprocess
 MODELS_FILE   = "models.txt"
 PLAYLIST_FILE = "playlist.m3u"
 SITE_BASE     = "https://booble.com"
+AVATAR_BASE   = "https://booble.com/avatar"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -23,7 +24,7 @@ HEADERS = {
 
 PAGE_WAIT  = 10
 TIMEOUT    = 30
-TOP_N      = 20  # top 20 from each category
+TOP_N      = 20
 
 # ─────────────────────────────────────────
 #  BROWSER
@@ -111,9 +112,29 @@ def load_models(filepath):
         return []
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read().strip()
-    models = [n.strip().lower() for n in content.split(",") if n.strip()]
+    models = [n.strip() for n in content.split(",") if n.strip()]
     print(f"[INFO] Loaded {len(models)} favorite(s): {models}")
     return models
+
+
+def get_avatar_url(model_name):
+    """
+    Try multiple avatar URL formats and return the first working one.
+    """
+    extensions = [".jpeg", ".jpg", ".png", ".webp"]
+    for ext in extensions:
+        avatar_url = f"{AVATAR_BASE}/{model_name}{ext}"
+        try:
+            resp = requests.head(avatar_url, headers=HEADERS, timeout=5, allow_redirects=True)
+            if resp.status_code == 200:
+                ct = resp.headers.get("Content-Type", "").lower()
+                if "image" in ct or resp.status_code == 200:
+                    return avatar_url
+        except Exception:
+            continue
+
+    # Fallback: try without checking (some servers block HEAD)
+    return f"{AVATAR_BASE}/{model_name}.jpeg"
 
 
 def extract_stream_from_logs(logs):
@@ -139,13 +160,12 @@ def extract_stream_from_logs(logs):
 
 
 # ─────────────────────────────────────────
-#  STREAM FETCHER  (booble.com)
+#  STREAM FETCHER
 # ─────────────────────────────────────────
 def fetch_stream(model_name):
     """
     Open booble.com/{model_name} in headless Chrome,
-    wait for HLS player to load, capture the m3u8 URL.
-    Returns stream URL string or None.
+    wait for HLS player, capture the m3u8 URL.
     """
     page_url = f"{SITE_BASE}/{model_name}"
     print(f"  Loading: {page_url}")
@@ -153,20 +173,18 @@ def fetch_stream(model_name):
     try:
         driver = init_browser()
 
-        # Clear previous logs
         driver.get("about:blank")
         time.sleep(0.3)
 
-        # Navigate
         try:
             driver.get(page_url)
         except Exception as e:
-            print(f"  [WARN] Page load issue (continuing): {e}")
+            print(f"  [WARN] Page load issue: {e}")
 
         print(f"  Waiting {PAGE_WAIT}s for player...")
         time.sleep(PAGE_WAIT)
 
-        # ── 1. Network performance logs ──
+        # ── 1. Network logs ──
         try:
             logs = driver.get_log("performance")
             urls = extract_stream_from_logs(logs)
@@ -183,10 +201,8 @@ def fetch_stream(model_name):
         source = driver.page_source
 
         m3u8_patterns = [
-            # booble/stripchat style
             r'(https?://edge-hls[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*)',
             r'(https?://[^\s"\'\\\]<>]*saawsedge\.com[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*)',
-            # generic
             r'(https?://[^\s"\'\\\]<>]+/master/[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*)',
             r'(https?://[^\s"\'\\\]<>]+_auto\.m3u8[^\s"\'\\\]<>]*)',
             r'(https?://[^\s"\'\\\]<>]+/hls/\d+/[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*)',
@@ -199,7 +215,6 @@ def fetch_stream(model_name):
             if hits:
                 clean = hits[0].replace("\\u002F", "/").replace("\\/", "/")
                 clean = re.sub(r'["\'\]}>\\]+$', '', clean)
-                # Skip non-stream m3u8 (like ad trackers)
                 if any(k in clean.lower() for k in ("hls", "edge", "saaws", "master", "auto", "stream", "live")):
                     print(f"  ✅ [Source] {clean[:120]}...")
                     return clean
@@ -207,7 +222,6 @@ def fetch_stream(model_name):
         # ── 3. JS extraction ──
         try:
             result = driver.execute_script("""
-                // Video element src
                 for (var v of document.querySelectorAll('video')) {
                     if (v.src && v.src.includes('m3u8')) return v.src;
                     if (v.currentSrc && v.currentSrc.includes('m3u8')) return v.currentSrc;
@@ -215,7 +229,6 @@ def fetch_stream(model_name):
                 for (var s of document.querySelectorAll('video source')) {
                     if (s.src && s.src.includes('m3u8')) return s.src;
                 }
-                // HLS.js instance
                 try {
                     if (typeof Hls !== 'undefined') {
                         var videos = document.querySelectorAll('video');
@@ -225,44 +238,35 @@ def fetch_stream(model_name):
                         }
                     }
                 } catch(e) {}
-                // Window variables
                 var keys = ['hlsUrl','streamUrl','videoUrl','playUrl','liveUrl',
                             'streamSrc','playerSrc','hlsSrc','masterUrl'];
                 for (var k of keys) {
                     if (window[k] && typeof window[k] === 'string') return window[k];
                 }
-                // Common player configs
                 try {
                     if (window.playerConfig && window.playerConfig.hlsUrl)
                         return window.playerConfig.hlsUrl;
                 } catch(e){}
-                try {
-                    if (window.__NEXT_DATA__)
-                        return JSON.stringify(window.__NEXT_DATA__);
-                } catch(e){}
                 return null;
             """)
 
-            if result:
-                if isinstance(result, str) and "m3u8" in result:
-                    # Direct URL
-                    if result.startswith("http"):
-                        print(f"  ✅ [JS] {result[:120]}...")
-                        return result
-                    # Embedded in JSON
-                    hits = re.findall(
-                        r'https?://[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*',
-                        result, re.IGNORECASE
-                    )
-                    if hits:
-                        clean = hits[0].replace("\\/", "/")
-                        print(f"  ✅ [JS-JSON] {clean[:120]}...")
-                        return clean
+            if result and isinstance(result, str):
+                if "m3u8" in result and result.startswith("http"):
+                    print(f"  ✅ [JS] {result[:120]}...")
+                    return result
+                hits = re.findall(
+                    r'https?://[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*',
+                    result, re.IGNORECASE
+                )
+                if hits:
+                    clean = hits[0].replace("\\/", "/")
+                    print(f"  ✅ [JS-JSON] {clean[:120]}...")
+                    return clean
         except Exception as e:
             print(f"  [WARN] JS: {e}")
 
-        # ── 4. Extra wait + retry ──
-        print("  Retrying after 5s extra wait...")
+        # ── 4. Retry after extra wait ──
+        print("  Retrying after 5s...")
         time.sleep(5)
         try:
             logs = driver.get_log("performance")
@@ -274,17 +278,16 @@ def fetch_stream(model_name):
         except Exception:
             pass
 
-        # ── 5. Check if offline ──
+        # ── 5. Offline check ──
         low = driver.page_source.lower()
-        offline_indicators = [
+        offline_words = [
             "offline", "is not online", "currently offline",
             "room is offline", "model is offline", "not broadcasting",
-            "has gone offline", "isn't available"
         ]
-        if any(x in low for x in offline_indicators):
+        if any(x in low for x in offline_words):
             print("  ❌ OFFLINE")
         else:
-            print("  ❌ Stream not found (may need longer wait or different method)")
+            print("  ❌ Stream not found")
 
         return None
 
@@ -295,7 +298,7 @@ def fetch_stream(model_name):
 
 
 # ─────────────────────────────────────────
-#  SITE SCRAPER  (discover top models)
+#  SITE SCRAPER
 # ─────────────────────────────────────────
 SKIP_WORDS = {
     "girl", "couple", "trans", "guy", "login", "signup", "register",
@@ -305,22 +308,24 @@ SKIP_WORDS = {
     "girls", "boys", "men", "women", "lang", "en", "de", "es", "fr",
     "settings", "favorites", "tokens", "premium", "vip", "join",
     "undefined", "null", "true", "false", "api", "static", "assets",
+    "avatar", "images", "css", "js", "fonts", "embed", "player",
 }
 
 
 def scrape_top_models():
     """
-    Scrape booble.com front page and couple page.
-    Returns dict with 'girl' and 'couple' lists, each max TOP_N names.
+    Scrape booble.com for top live models (girl + couple).
+    Returns dict: {"girl": [names], "couple": [names]}
     """
     result = {"girl": [], "couple": []}
     seen = set()
 
+    # ── Try with requests first ──
     pages = [
-        (f"{SITE_BASE}/",       "girl"),
-        (f"{SITE_BASE}/girls",  "girl"),
-        (f"{SITE_BASE}/couple", "couple"),
-        (f"{SITE_BASE}/couples","couple"),
+        (f"{SITE_BASE}/",        "girl"),
+        (f"{SITE_BASE}/girls",   "girl"),
+        (f"{SITE_BASE}/couple",  "couple"),
+        (f"{SITE_BASE}/couples", "couple"),
     ]
 
     for page_url, category in pages:
@@ -336,13 +341,10 @@ def scrape_top_models():
 
             html = resp.text
 
-            # Pattern 1: direct profile links  /username  or /cam/username
             names_found = re.findall(
-                r'href=["\'](?:https?://[^"\']*)?/(?:cam/)?([a-zA-Z0-9_-]{3,50})["\']',
+                r'href=["\'](?:https?://[^"\']*)?/([a-zA-Z0-9_-]{3,50})["\']',
                 html, re.IGNORECASE
             )
-
-            # Pattern 2: data attributes
             names_found += re.findall(
                 r'data-(?:model|performer|username|name|slug)=["\']([a-zA-Z0-9_-]{3,50})["\']',
                 html, re.IGNORECASE
@@ -352,17 +354,17 @@ def scrape_top_models():
             for name in names_found:
                 if len(result[category]) >= TOP_N:
                     break
-
-                name = name.lower().strip().strip("-_")
+                name_clean = name.strip().strip("-_")
+                name_lower = name_clean.lower()
                 if (
-                    name not in seen
-                    and name not in SKIP_WORDS
-                    and 3 <= len(name) <= 50
-                    and re.match(r'^[a-z0-9][a-z0-9_-]*$', name)
-                    and not name.endswith((".js", ".css", ".png", ".jpg", ".gif", ".ico", ".svg"))
+                    name_lower not in seen
+                    and name_lower not in SKIP_WORDS
+                    and 3 <= len(name_clean) <= 50
+                    and re.match(r'^[a-zA-Z0-9_-]+$', name_clean)
+                    and not name_lower.endswith((".js", ".css", ".png", ".jpg", ".gif", ".svg"))
                 ):
-                    seen.add(name)
-                    result[category].append(name)
+                    seen.add(name_lower)
+                    result[category].append(name_clean)
                     count += 1
 
             print(f"  +{count} ({category}) → total {len(result[category])}")
@@ -371,27 +373,21 @@ def scrape_top_models():
         except Exception as e:
             print(f"  Error: {e}")
 
-    # Also try Selenium on front page if requests didn't find enough
+    # ── Fallback to Selenium if not enough ──
     for category in ["girl", "couple"]:
         if len(result[category]) < TOP_N:
-            print(f"[SCRAPE] Using Selenium for {category} page...")
+            print(f"[SCRAPE] Selenium fallback for {category}...")
             try:
                 driver = init_browser()
-
-                if category == "girl":
-                    driver.get(f"{SITE_BASE}/")
-                else:
-                    driver.get(f"{SITE_BASE}/{category}")
-
+                target = f"{SITE_BASE}/" if category == "girl" else f"{SITE_BASE}/{category}"
+                driver.get(target)
                 time.sleep(5)
-
-                # Scroll down to load more
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                 time.sleep(3)
 
                 html = driver.page_source
                 names_found = re.findall(
-                    r'href=["\'](?:https?://[^"\']*)?/(?:cam/)?([a-zA-Z0-9_-]{3,50})["\']',
+                    r'href=["\'](?:https?://[^"\']*)?/([a-zA-Z0-9_-]{3,50})["\']',
                     html, re.IGNORECASE
                 )
 
@@ -399,22 +395,23 @@ def scrape_top_models():
                 for name in names_found:
                     if len(result[category]) >= TOP_N:
                         break
-                    name = name.lower().strip().strip("-_")
+                    name_clean = name.strip().strip("-_")
+                    name_lower = name_clean.lower()
                     if (
-                        name not in seen
-                        and name not in SKIP_WORDS
-                        and 3 <= len(name) <= 50
-                        and re.match(r'^[a-z0-9][a-z0-9_-]*$', name)
-                        and not name.endswith((".js", ".css", ".png", ".jpg"))
+                        name_lower not in seen
+                        and name_lower not in SKIP_WORDS
+                        and 3 <= len(name_clean) <= 50
+                        and re.match(r'^[a-zA-Z0-9_-]+$', name_clean)
+                        and not name_lower.endswith((".js", ".css", ".png", ".jpg"))
                     ):
-                        seen.add(name)
-                        result[category].append(name)
+                        seen.add(name_lower)
+                        result[category].append(name_clean)
                         count += 1
 
                 print(f"  +{count} ({category}) via Selenium → total {len(result[category])}")
 
             except Exception as e:
-                print(f"  Selenium scrape error: {e}")
+                print(f"  Selenium error: {e}")
 
     print(f"\n[SCRAPE] Girls: {len(result['girl'])} | Couples: {len(result['couple'])}")
     return result
@@ -435,29 +432,32 @@ def generate_m3u(favorite_live, girls_live, couples_live):
         "",
     ]
 
-    # ⭐ Favorites first
-    for model, url in favorite_live.items():
+    # ⭐ Favorites
+    for model, info in favorite_live.items():
         lines.append(
             f'#EXTINF:-1 tvg-id="{model}" tvg-name="{model}" '
+            f'tvg-logo="{info["avatar"]}" '
             f'group-title="⭐ Favorites",⭐ {model}'
         )
-        lines.append(url)
+        lines.append(info["stream"])
 
     # 👩 Girls
-    for model, url in girls_live.items():
+    for model, info in girls_live.items():
         lines.append(
             f'#EXTINF:-1 tvg-id="{model}" tvg-name="{model}" '
+            f'tvg-logo="{info["avatar"]}" '
             f'group-title="Girl",{model}'
         )
-        lines.append(url)
+        lines.append(info["stream"])
 
     # 👫 Couples
-    for model, url in couples_live.items():
+    for model, info in couples_live.items():
         lines.append(
             f'#EXTINF:-1 tvg-id="{model}" tvg-name="{model}" '
+            f'tvg-logo="{info["avatar"]}" '
             f'group-title="Couple",{model}'
         )
-        lines.append(url)
+        lines.append(info["stream"])
 
     return "\n".join(lines)
 
@@ -483,9 +483,11 @@ def main():
             print("─" * 50)
             for name in favorite_names:
                 print(f"\n[FAV] {name}")
-                url = fetch_stream(name)
-                if url:
-                    favorite_live[name] = url
+                stream = fetch_stream(name)
+                if stream:
+                    avatar = get_avatar_url(name)
+                    favorite_live[name] = {"stream": stream, "avatar": avatar}
+                    print(f"  🖼️  Avatar: {avatar}")
                     print(f"  → LIVE ✅")
                 else:
                     print(f"  → offline ❌")
@@ -493,22 +495,24 @@ def main():
 
         # ── 3. Discover top models ──
         print("\n" + "─" * 50)
-        print(f"  👥 DISCOVERING TOP {TOP_N} GIRLS & {TOP_N} COUPLES")
+        print(f"  👥 DISCOVERING TOP {TOP_N} GIRLS & TOP {TOP_N} COUPLES")
         print("─" * 50)
 
         discovered = scrape_top_models()
-        fav_set = set(favorite_names)
+        fav_set = set(n.lower() for n in favorite_names)
 
         # ── 4. Check girls ──
         girls_live = {}
-        girl_candidates = [n for n in discovered["girl"] if n not in fav_set]
-        print(f"\n[GIRLS] {len(girl_candidates)} candidate(s) (top {TOP_N})")
+        girl_candidates = [n for n in discovered["girl"] if n.lower() not in fav_set]
+        print(f"\n[GIRLS] {len(girl_candidates)} candidate(s)")
 
         for i, name in enumerate(girl_candidates[:TOP_N]):
             print(f"\n[Girl {i+1}/{min(len(girl_candidates), TOP_N)}] {name}")
-            url = fetch_stream(name)
-            if url:
-                girls_live[name] = url
+            stream = fetch_stream(name)
+            if stream:
+                avatar = get_avatar_url(name)
+                girls_live[name] = {"stream": stream, "avatar": avatar}
+                print(f"  🖼️  Avatar: {avatar}")
                 print(f"  → LIVE ✅")
             else:
                 print(f"  → offline ❌")
@@ -516,14 +520,16 @@ def main():
 
         # ── 5. Check couples ──
         couples_live = {}
-        couple_candidates = [n for n in discovered["couple"] if n not in fav_set]
-        print(f"\n[COUPLES] {len(couple_candidates)} candidate(s) (top {TOP_N})")
+        couple_candidates = [n for n in discovered["couple"] if n.lower() not in fav_set]
+        print(f"\n[COUPLES] {len(couple_candidates)} candidate(s)")
 
         for i, name in enumerate(couple_candidates[:TOP_N]):
             print(f"\n[Couple {i+1}/{min(len(couple_candidates), TOP_N)}] {name}")
-            url = fetch_stream(name)
-            if url:
-                couples_live[name] = url
+            stream = fetch_stream(name)
+            if stream:
+                avatar = get_avatar_url(name)
+                couples_live[name] = {"stream": stream, "avatar": avatar}
+                print(f"  🖼️  Avatar: {avatar}")
                 print(f"  → LIVE ✅")
             else:
                 print(f"  → offline ❌")
@@ -537,19 +543,21 @@ def main():
         # ── 7. Summary ──
         total = len(favorite_live) + len(girls_live) + len(couples_live)
         print("\n" + "=" * 60)
-        print("  RESULTS")
+        print("  📊 RESULTS")
         print("=" * 60)
 
         print(f"\n  ⭐ Favorites: {len(favorite_live)}/{len(favorite_names)}")
         for n in favorite_names:
-            mark = "✅" if n in favorite_live else "❌"
-            print(f"     {mark} {n}")
+            if n in favorite_live:
+                print(f"     ✅ {n}")
+            else:
+                print(f"     ❌ {n}")
 
-        print(f"\n  👩 Girls: {len(girls_live)} live (top {TOP_N})")
+        print(f"\n  👩 Girls: {len(girls_live)} live")
         for n in girls_live:
             print(f"     ✅ {n}")
 
-        print(f"\n  👫 Couples: {len(couples_live)} live (top {TOP_N})")
+        print(f"\n  👫 Couples: {len(couples_live)} live")
         for n in couples_live:
             print(f"     ✅ {n}")
 
