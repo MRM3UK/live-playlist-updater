@@ -10,18 +10,20 @@ import subprocess
 # ─────────────────────────────────────────
 MODELS_FILE   = "models.txt"
 PLAYLIST_FILE = "playlist.m3u"
-SITE_BASE     = "https://www.2kcams.com"
+SITE_BASE     = "https://booble.com"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                   "AppleWebKit/537.36 (KHTML, like Gecko) "
                   "Chrome/125.0.0.0 Safari/537.36",
-    "Referer": "https://www.2kcams.com/",
+    "Referer": "https://booble.com/",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
 }
 
-PAGE_WAIT  = 8   # seconds to wait for video player
-TIMEOUT    = 25
-MAX_OTHERS = 50  # max other models to check
+PAGE_WAIT  = 10
+TIMEOUT    = 30
+TOP_N      = 20  # top 20 from each category
 
 # ─────────────────────────────────────────
 #  BROWSER
@@ -36,12 +38,12 @@ def get_chrome_binary():
         "/usr/bin/chromium-browser",
         "/usr/bin/chromium",
     ]
-    for path in paths:
+    for p in paths:
         try:
-            r = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=5)
+            r = subprocess.run([p, "--version"], capture_output=True, text=True, timeout=5)
             if r.returncode == 0:
-                print(f"[BROWSER] Chrome: {path} ({r.stdout.strip()})")
-                return path
+                print(f"[BROWSER] Chrome: {p} ({r.stdout.strip()})")
+                return p
         except Exception:
             continue
     return None
@@ -75,8 +77,6 @@ def init_browser():
     )
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
-
-    # Enable network log capture
     options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
 
     chrome_bin = get_chrome_binary()
@@ -106,7 +106,6 @@ def close_browser():
 #  HELPERS
 # ─────────────────────────────────────────
 def load_models(filepath):
-    """Load comma-separated model names from txt file."""
     if not os.path.exists(filepath):
         print(f"[ERROR] {filepath} not found!")
         return []
@@ -118,7 +117,7 @@ def load_models(filepath):
 
 
 def extract_stream_from_logs(logs):
-    """Pull m3u8 URLs out of Chrome performance logs."""
+    """Extract m3u8/hls stream URLs from Chrome performance logs."""
     found = []
     for entry in logs:
         try:
@@ -130,7 +129,9 @@ def extract_stream_from_logs(logs):
                     or params.get("response", {}).get("url")
                     or ""
                 )
-                if "m3u8" in url and any(x in url for x in ("edge", "mmcdn", "live")):
+                if ".m3u8" in url and any(k in url for k in (
+                    "edge", "hls", "saawsedge", "master", "live", "stream", "cdn"
+                )):
                     found.append(url)
         except Exception:
             continue
@@ -138,199 +139,303 @@ def extract_stream_from_logs(logs):
 
 
 # ─────────────────────────────────────────
-#  STREAM FETCHER
+#  STREAM FETCHER  (booble.com)
 # ─────────────────────────────────────────
 def fetch_stream(model_name):
     """
-    Open model page in headless Chrome and extract HLS stream URL.
+    Open booble.com/{model_name} in headless Chrome,
+    wait for HLS player to load, capture the m3u8 URL.
     Returns stream URL string or None.
     """
-    page_url = f"{SITE_BASE}/cam/{model_name}"
+    page_url = f"{SITE_BASE}/{model_name}"
     print(f"  Loading: {page_url}")
 
     try:
         driver = init_browser()
 
-        # Clear logs from previous page
+        # Clear previous logs
         driver.get("about:blank")
         time.sleep(0.3)
 
-        # Load model page
+        # Navigate
         try:
             driver.get(page_url)
         except Exception as e:
-            print(f"  [WARN] Page load timeout (continuing): {e}")
+            print(f"  [WARN] Page load issue (continuing): {e}")
 
         print(f"  Waiting {PAGE_WAIT}s for player...")
         time.sleep(PAGE_WAIT)
 
-        # ── Method 1: Network logs ──
+        # ── 1. Network performance logs ──
         try:
-            logs  = driver.get_log("performance")
-            urls  = extract_stream_from_logs(logs)
+            logs = driver.get_log("performance")
+            urls = extract_stream_from_logs(logs)
             if urls:
-                best = next((u for u in urls if "token=" in u), urls[0])
-                print(f"  ✅ [Network] {best[:100]}...")
+                best = next((u for u in urls if "master" in u), None)
+                if not best:
+                    best = next((u for u in urls if "auto" in u), urls[0])
+                print(f"  ✅ [Network] {best[:120]}...")
                 return best
         except Exception as e:
-            print(f"  [WARN] Log read: {e}")
+            print(f"  [WARN] Logs: {e}")
 
-        # ── Method 2: Page source regex ──
+        # ── 2. Page source regex ──
         source = driver.page_source
-        patterns = [
-            r'(https?://edge\d*-[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*)',
-            r'(https?://[^\s"\'\\\]<>]*live\.mmcdn\.com[^\s"\'\\\]<>]+m3u8[^\s"\'\\\]<>]*)',
-            r'(https?://[^\s"\'\\\]<>]*mmcdn\.com[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*)',
-            r'(https?://[^\s"\'\\\]<>]+/llhls\.m3u8[^\s"\'\\\]<>]*)',
-            r'(https?://[^\s"\'\\\]<>]+/playlist\.m3u8[^\s"\'\\\]<>]*)',
+
+        m3u8_patterns = [
+            # booble/stripchat style
+            r'(https?://edge-hls[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*)',
+            r'(https?://[^\s"\'\\\]<>]*saawsedge\.com[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*)',
+            # generic
+            r'(https?://[^\s"\'\\\]<>]+/master/[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*)',
+            r'(https?://[^\s"\'\\\]<>]+_auto\.m3u8[^\s"\'\\\]<>]*)',
+            r'(https?://[^\s"\'\\\]<>]+/hls/\d+/[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*)',
+            r'(https?://[^\s"\'\\\]<>]+\.m3u8\?[^\s"\'\\\]<>]*)',
+            r'(https?://[^\s"\'\\\]<>]+\.m3u8)',
         ]
-        for pat in patterns:
+
+        for pat in m3u8_patterns:
             hits = re.findall(pat, source, re.IGNORECASE)
             if hits:
                 clean = hits[0].replace("\\u002F", "/").replace("\\/", "/")
                 clean = re.sub(r'["\'\]}>\\]+$', '', clean)
-                print(f"  ✅ [Source] {clean[:100]}...")
-                return clean
+                # Skip non-stream m3u8 (like ad trackers)
+                if any(k in clean.lower() for k in ("hls", "edge", "saaws", "master", "auto", "stream", "live")):
+                    print(f"  ✅ [Source] {clean[:120]}...")
+                    return clean
 
-        # ── Method 3: JS extraction ──
+        # ── 3. JS extraction ──
         try:
             result = driver.execute_script("""
-                // Video element
+                // Video element src
                 for (var v of document.querySelectorAll('video')) {
                     if (v.src && v.src.includes('m3u8')) return v.src;
                     if (v.currentSrc && v.currentSrc.includes('m3u8')) return v.currentSrc;
                 }
-                // Source elements
                 for (var s of document.querySelectorAll('video source')) {
                     if (s.src && s.src.includes('m3u8')) return s.src;
                 }
+                // HLS.js instance
+                try {
+                    if (typeof Hls !== 'undefined') {
+                        var videos = document.querySelectorAll('video');
+                        for (var v of videos) {
+                            if (v.hlsPlayer) return v.hlsPlayer.url;
+                            if (v._hls) return v._hls.url;
+                        }
+                    }
+                } catch(e) {}
                 // Window variables
-                var keys = ['hlsUrl','streamUrl','videoUrl','playUrl','liveUrl','streamSrc'];
+                var keys = ['hlsUrl','streamUrl','videoUrl','playUrl','liveUrl',
+                            'streamSrc','playerSrc','hlsSrc','masterUrl'];
                 for (var k of keys) {
                     if (window[k] && typeof window[k] === 'string') return window[k];
                 }
-                // Next.js / Nuxt state
-                if (window.__NEXT_DATA__) return JSON.stringify(window.__NEXT_DATA__);
-                if (window.__NUXT__) return JSON.stringify(window.__NUXT__);
-                if (window.__INITIAL_STATE__) return JSON.stringify(window.__INITIAL_STATE__);
+                // Common player configs
+                try {
+                    if (window.playerConfig && window.playerConfig.hlsUrl)
+                        return window.playerConfig.hlsUrl;
+                } catch(e){}
+                try {
+                    if (window.__NEXT_DATA__)
+                        return JSON.stringify(window.__NEXT_DATA__);
+                } catch(e){}
                 return null;
             """)
 
             if result:
-                hits = re.findall(
-                    r'https?://[^\s"\'\\\]<>]+(?:m3u8|mmcdn)[^\s"\'\\\]<>]*',
-                    str(result), re.IGNORECASE
-                )
-                if hits:
-                    clean = hits[0].replace("\\/", "/")
-                    print(f"  ✅ [JS] {clean[:100]}...")
-                    return clean
+                if isinstance(result, str) and "m3u8" in result:
+                    # Direct URL
+                    if result.startswith("http"):
+                        print(f"  ✅ [JS] {result[:120]}...")
+                        return result
+                    # Embedded in JSON
+                    hits = re.findall(
+                        r'https?://[^\s"\'\\\]<>]+\.m3u8[^\s"\'\\\]<>]*',
+                        result, re.IGNORECASE
+                    )
+                    if hits:
+                        clean = hits[0].replace("\\/", "/")
+                        print(f"  ✅ [JS-JSON] {clean[:120]}...")
+                        return clean
         except Exception as e:
             print(f"  [WARN] JS: {e}")
 
-        # ── Method 4: Extra wait + retry logs ──
-        print("  Waiting 5 more seconds...")
+        # ── 4. Extra wait + retry ──
+        print("  Retrying after 5s extra wait...")
         time.sleep(5)
         try:
             logs = driver.get_log("performance")
             urls = extract_stream_from_logs(logs)
             if urls:
-                best = next((u for u in urls if "token=" in u), urls[0])
-                print(f"  ✅ [Retry] {best[:100]}...")
+                best = next((u for u in urls if "master" in u), urls[0])
+                print(f"  ✅ [Retry] {best[:120]}...")
                 return best
         except Exception:
             pass
 
-        # Offline check
+        # ── 5. Check if offline ──
         low = driver.page_source.lower()
-        if any(x in low for x in ("offline", "not online", "currently offline")):
+        offline_indicators = [
+            "offline", "is not online", "currently offline",
+            "room is offline", "model is offline", "not broadcasting",
+            "has gone offline", "isn't available"
+        ]
+        if any(x in low for x in offline_indicators):
             print("  ❌ OFFLINE")
         else:
-            print("  ❌ Stream not found")
+            print("  ❌ Stream not found (may need longer wait or different method)")
 
         return None
 
     except Exception as e:
         print(f"  [ERROR] {e}")
-        close_browser()   # reset on crash
+        close_browser()
         return None
 
 
 # ─────────────────────────────────────────
-#  SITE SCRAPER
+#  SITE SCRAPER  (discover top models)
 # ─────────────────────────────────────────
 SKIP_WORDS = {
     "girl", "couple", "trans", "guy", "login", "signup", "register",
     "terms", "privacy", "contact", "about", "faq", "help", "support",
     "search", "categories", "tags", "popular", "new", "top", "index",
-    "page", "home", "cam", "category", "male", "female", "couples", "girls",
+    "page", "home", "cam", "category", "male", "female", "couples",
+    "girls", "boys", "men", "women", "lang", "en", "de", "es", "fr",
+    "settings", "favorites", "tokens", "premium", "vip", "join",
+    "undefined", "null", "true", "false", "api", "static", "assets",
 }
 
-PAGES = [
-    (f"{SITE_BASE}/",             "girl"),
-    (f"{SITE_BASE}/?page=2",      "girl"),
-    (f"{SITE_BASE}/?page=3",      "girl"),
-    (f"{SITE_BASE}/couple",       "couple"),
-    (f"{SITE_BASE}/couple?page=2","couple"),
-]
 
+def scrape_top_models():
+    """
+    Scrape booble.com front page and couple page.
+    Returns dict with 'girl' and 'couple' lists, each max TOP_N names.
+    """
+    result = {"girl": [], "couple": []}
+    seen = set()
 
-def fetch_discovered_models():
-    """Scrape listing pages and return list of {name, category} dicts."""
-    all_models = []
-    seen       = set()
+    pages = [
+        (f"{SITE_BASE}/",       "girl"),
+        (f"{SITE_BASE}/girls",  "girl"),
+        (f"{SITE_BASE}/couple", "couple"),
+        (f"{SITE_BASE}/couples","couple"),
+    ]
 
-    for page_url, category in PAGES:
+    for page_url, category in pages:
+        if len(result[category]) >= TOP_N:
+            continue
+
         print(f"[SCRAPE] {page_url}")
         try:
-            resp = requests.get(page_url, headers=HEADERS, timeout=15)
+            resp = requests.get(page_url, headers=HEADERS, timeout=15, allow_redirects=True)
             if resp.status_code != 200:
                 print(f"  HTTP {resp.status_code}")
                 continue
 
-            links = re.findall(
-                r'href=["\'](?:https?://[^"\']*)?/cam/([a-zA-Z0-9_-]+)["\']',
-                resp.text, re.IGNORECASE
+            html = resp.text
+
+            # Pattern 1: direct profile links  /username  or /cam/username
+            names_found = re.findall(
+                r'href=["\'](?:https?://[^"\']*)?/(?:cam/)?([a-zA-Z0-9_-]{3,50})["\']',
+                html, re.IGNORECASE
+            )
+
+            # Pattern 2: data attributes
+            names_found += re.findall(
+                r'data-(?:model|performer|username|name|slug)=["\']([a-zA-Z0-9_-]{3,50})["\']',
+                html, re.IGNORECASE
             )
 
             count = 0
-            for name in links:
+            for name in names_found:
+                if len(result[category]) >= TOP_N:
+                    break
+
                 name = name.lower().strip().strip("-_")
                 if (
                     name not in seen
                     and name not in SKIP_WORDS
                     and 3 <= len(name) <= 50
-                    and re.match(r'^[a-z0-9_-]+$', name)
+                    and re.match(r'^[a-z0-9][a-z0-9_-]*$', name)
+                    and not name.endswith((".js", ".css", ".png", ".jpg", ".gif", ".ico", ".svg"))
                 ):
                     seen.add(name)
-                    all_models.append({"name": name, "category": category})
+                    result[category].append(name)
                     count += 1
 
-            print(f"  +{count} models")
+            print(f"  +{count} ({category}) → total {len(result[category])}")
             time.sleep(0.5)
 
         except Exception as e:
             print(f"  Error: {e}")
 
-    print(f"[SCRAPE] Total discovered: {len(all_models)}")
-    return all_models
+    # Also try Selenium on front page if requests didn't find enough
+    for category in ["girl", "couple"]:
+        if len(result[category]) < TOP_N:
+            print(f"[SCRAPE] Using Selenium for {category} page...")
+            try:
+                driver = init_browser()
+
+                if category == "girl":
+                    driver.get(f"{SITE_BASE}/")
+                else:
+                    driver.get(f"{SITE_BASE}/{category}")
+
+                time.sleep(5)
+
+                # Scroll down to load more
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(3)
+
+                html = driver.page_source
+                names_found = re.findall(
+                    r'href=["\'](?:https?://[^"\']*)?/(?:cam/)?([a-zA-Z0-9_-]{3,50})["\']',
+                    html, re.IGNORECASE
+                )
+
+                count = 0
+                for name in names_found:
+                    if len(result[category]) >= TOP_N:
+                        break
+                    name = name.lower().strip().strip("-_")
+                    if (
+                        name not in seen
+                        and name not in SKIP_WORDS
+                        and 3 <= len(name) <= 50
+                        and re.match(r'^[a-z0-9][a-z0-9_-]*$', name)
+                        and not name.endswith((".js", ".css", ".png", ".jpg"))
+                    ):
+                        seen.add(name)
+                        result[category].append(name)
+                        count += 1
+
+                print(f"  +{count} ({category}) via Selenium → total {len(result[category])}")
+
+            except Exception as e:
+                print(f"  Selenium scrape error: {e}")
+
+    print(f"\n[SCRAPE] Girls: {len(result['girl'])} | Couples: {len(result['couple'])}")
+    return result
 
 
 # ─────────────────────────────────────────
 #  PLAYLIST WRITER
 # ─────────────────────────────────────────
-def generate_m3u(favorite_live: dict, other_live: dict) -> str:
+def generate_m3u(favorite_live, girls_live, couples_live):
     lines = [
         "#EXTM3U",
-        f"# Updated : {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}",
-        f"# Source  : 2kcams.com",
-        f"# Favs    : {len(favorite_live)}",
-        f"# Others  : {len(other_live)}",
-        f"# Total   : {len(favorite_live) + len(other_live)}",
+        f"# Updated  : {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}",
+        f"# Source   : booble.com",
+        f"# Favs     : {len(favorite_live)}",
+        f"# Girls    : {len(girls_live)}",
+        f"# Couples  : {len(couples_live)}",
+        f"# Total    : {len(favorite_live) + len(girls_live) + len(couples_live)}",
         "",
     ]
 
-    # Favorites first
+    # ⭐ Favorites first
     for model, url in favorite_live.items():
         lines.append(
             f'#EXTINF:-1 tvg-id="{model}" tvg-name="{model}" '
@@ -338,14 +443,21 @@ def generate_m3u(favorite_live: dict, other_live: dict) -> str:
         )
         lines.append(url)
 
-    # Others by category
-    for model, info in other_live.items():
-        cat = info["category"].capitalize()
+    # 👩 Girls
+    for model, url in girls_live.items():
         lines.append(
             f'#EXTINF:-1 tvg-id="{model}" tvg-name="{model}" '
-            f'group-title="{cat}",{model}'
+            f'group-title="Girl",{model}'
         )
-        lines.append(info["url"])
+        lines.append(url)
+
+    # 👫 Couples
+    for model, url in couples_live.items():
+        lines.append(
+            f'#EXTINF:-1 tvg-id="{model}" tvg-name="{model}" '
+            f'group-title="Couple",{model}'
+        )
+        lines.append(url)
 
     return "\n".join(lines)
 
@@ -355,19 +467,19 @@ def generate_m3u(favorite_live: dict, other_live: dict) -> str:
 # ─────────────────────────────────────────
 def main():
     print("=" * 60)
-    print("  Live Playlist Updater — 2kcams.com")
+    print("  Live Playlist Updater — booble.com")
     print(f"  {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
     print("=" * 60)
 
     try:
-        # 1. Load favorites
+        # ── 1. Load favorites ──
         favorite_names = load_models(MODELS_FILE)
 
-        # 2. Check each favorite
+        # ── 2. Check favorites ──
         favorite_live = {}
         if favorite_names:
             print("\n" + "─" * 50)
-            print("  FAVORITE MODELS")
+            print("  ⭐ CHECKING FAVORITES")
             print("─" * 50)
             for name in favorite_names:
                 print(f"\n[FAV] {name}")
@@ -379,47 +491,70 @@ def main():
                     print(f"  → offline ❌")
                 time.sleep(2)
 
-        # 3. Discover other live models
+        # ── 3. Discover top models ──
         print("\n" + "─" * 50)
-        print("  OTHER LIVE MODELS  (girl / couple)")
+        print(f"  👥 DISCOVERING TOP {TOP_N} GIRLS & {TOP_N} COUPLES")
         print("─" * 50)
 
-        discovered = fetch_discovered_models()
-        fav_set    = set(favorite_names)
-        candidates = [m for m in discovered if m["name"] not in fav_set]
-        print(f"[INFO] {len(candidates)} candidate(s) to check")
+        discovered = scrape_top_models()
+        fav_set = set(favorite_names)
 
-        other_live = {}
-        for i, m in enumerate(candidates):
-            if i >= MAX_OTHERS:
-                print(f"[INFO] Limit reached ({MAX_OTHERS})")
-                break
+        # ── 4. Check girls ──
+        girls_live = {}
+        girl_candidates = [n for n in discovered["girl"] if n not in fav_set]
+        print(f"\n[GIRLS] {len(girl_candidates)} candidate(s) (top {TOP_N})")
 
-            name = m["name"]
-            cat  = m["category"]
-            print(f"\n[{i+1}/{min(len(candidates), MAX_OTHERS)}] {name} ({cat})")
-
+        for i, name in enumerate(girl_candidates[:TOP_N]):
+            print(f"\n[Girl {i+1}/{min(len(girl_candidates), TOP_N)}] {name}")
             url = fetch_stream(name)
             if url:
-                other_live[name] = {"url": url, "category": cat}
+                girls_live[name] = url
                 print(f"  → LIVE ✅")
-
+            else:
+                print(f"  → offline ❌")
             time.sleep(1.5)
 
-        # 4. Write playlist
-        playlist = generate_m3u(favorite_live, other_live)
+        # ── 5. Check couples ──
+        couples_live = {}
+        couple_candidates = [n for n in discovered["couple"] if n not in fav_set]
+        print(f"\n[COUPLES] {len(couple_candidates)} candidate(s) (top {TOP_N})")
+
+        for i, name in enumerate(couple_candidates[:TOP_N]):
+            print(f"\n[Couple {i+1}/{min(len(couple_candidates), TOP_N)}] {name}")
+            url = fetch_stream(name)
+            if url:
+                couples_live[name] = url
+                print(f"  → LIVE ✅")
+            else:
+                print(f"  → offline ❌")
+            time.sleep(1.5)
+
+        # ── 6. Write playlist ──
+        playlist = generate_m3u(favorite_live, girls_live, couples_live)
         with open(PLAYLIST_FILE, "w", encoding="utf-8") as f:
             f.write(playlist)
 
-        # 5. Summary
+        # ── 7. Summary ──
+        total = len(favorite_live) + len(girls_live) + len(couples_live)
         print("\n" + "=" * 60)
-        print(f"  ⭐ Favorites : {len(favorite_live)}/{len(favorite_names)} live")
+        print("  RESULTS")
+        print("=" * 60)
+
+        print(f"\n  ⭐ Favorites: {len(favorite_live)}/{len(favorite_names)}")
         for n in favorite_names:
             mark = "✅" if n in favorite_live else "❌"
             print(f"     {mark} {n}")
-        print(f"  👥 Others    : {len(other_live)} live")
-        print(f"  📺 Total     : {len(favorite_live) + len(other_live)}")
-        print(f"  💾 Saved     : {PLAYLIST_FILE}")
+
+        print(f"\n  👩 Girls: {len(girls_live)} live (top {TOP_N})")
+        for n in girls_live:
+            print(f"     ✅ {n}")
+
+        print(f"\n  👫 Couples: {len(couples_live)} live (top {TOP_N})")
+        for n in couples_live:
+            print(f"     ✅ {n}")
+
+        print(f"\n  📺 Total: {total}")
+        print(f"  💾 Saved: {PLAYLIST_FILE}")
         print("=" * 60)
 
     finally:
