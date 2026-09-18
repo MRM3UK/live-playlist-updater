@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-09-18 20:33:04 UTC
+# Updated  : 2026-09-18 23:01:14 UTC
 # Source   : booble.com
-# Favs     : 0
+# Favs     : 1
 # Girls    : 0
 # Couples  : 0
-# Total    : 0
+# Total    : 1
+
+#EXTINF:-1 tvg-id="dolls_wallen" tvg-name="dolls_wallen" tvg-logo="https://booble.com/avatar/dolls_wallen.jpeg" group-title="⭐ Favorites",⭐ dolls_wallen
+https://edge-hls.doppiocdn.media/ping.m3u8
