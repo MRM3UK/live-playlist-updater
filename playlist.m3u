@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-09-18 05:49:43 UTC
+# Updated  : 2026-09-18 10:28:04 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 0
+# Girls    : 1
 # Couples  : 0
-# Total    : 0
+# Total    : 1
+
+#EXTINF:-1 tvg-id="Sara_fun" tvg-name="Sara_fun" tvg-logo="https://booble.com/avatar/Sara_fun.jpeg" group-title="Girl",Sara_fun
+https://edge-hls.doppiocdn.media/ping.m3u8
