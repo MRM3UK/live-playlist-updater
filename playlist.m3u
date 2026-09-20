@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-09-20 15:57:35 UTC
+# Updated  : 2026-09-20 18:47:52 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 0
+# Girls    : 1
 # Couples  : 0
-# Total    : 0
+# Total    : 1
+
+#EXTINF:-1 tvg-id="jannemary" tvg-name="jannemary" tvg-logo="https://booble.com/avatar/jannemary.jpeg" group-title="Girl",jannemary
+https://edge-hls.doppiocdn.media/ping.m3u8
