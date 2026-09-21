@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-09-21 01:48:21 UTC
+# Updated  : 2026-09-21 07:06:09 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 1
+# Total    : 1
+
+#EXTINF:-1 tvg-id="Jucie_Boom" tvg-name="Jucie_Boom" tvg-logo="https://booble.com/avatar/Jucie_Boom.jpeg" group-title="Couple",Jucie_Boom
+https://edge-hls.doppiocdn.media/ping.m3u8
