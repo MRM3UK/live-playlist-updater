@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-09-22 11:30:03 UTC
+# Updated  : 2026-09-22 15:59:48 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 1
+# Total    : 1
+
+#EXTINF:-1 tvg-id="mo-mo-69" tvg-name="mo-mo-69" tvg-logo="https://booble.com/avatar/mo-mo-69.jpeg" group-title="Couple",mo-mo-69
+https://edge-hls.doppiocdn.media/ping.m3u8
