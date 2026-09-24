@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-09-24 11:05:56 UTC
+# Updated  : 2026-09-24 16:04:43 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 1
+# Total    : 1
+
+#EXTINF:-1 tvg-id="YasmineRiva" tvg-name="YasmineRiva" tvg-logo="https://booble.com/avatar/YasmineRiva.jpeg" group-title="Couple",YasmineRiva
+https://edge-hls.doppiocdn.media/ping.m3u8
