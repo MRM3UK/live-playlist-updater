@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-09-26 06:45:37 UTC
+# Updated  : 2026-09-26 12:07:58 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 1
+# Total    : 1
+
+#EXTINF:-1 tvg-id="Sara-Vegaa" tvg-name="Sara-Vegaa" tvg-logo="https://booble.com/avatar/Sara-Vegaa.jpeg" group-title="Couple",Sara-Vegaa
+https://edge-hls.doppiocdn.media/ping.m3u8
