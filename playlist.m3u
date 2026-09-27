@@ -1,12 +1,7 @@
 #EXTM3U
-# Updated  : 2026-09-27 04:24:24 UTC
+# Updated  : 2026-09-27 10:21:31 UTC
 # Source   : booble.com
-# Favs     : 1
-# Girls    : 1
+# Favs     : 0
+# Girls    : 0
 # Couples  : 0
-# Total    : 2
-
-#EXTINF:-1 tvg-id="amandatalk" tvg-name="amandatalk" tvg-logo="https://booble.com/avatar/amandatalk.jpeg" group-title="⭐ Favorites",⭐ amandatalk
-https://edge-hls.doppiocdn.media/ping.m3u8
-#EXTINF:-1 tvg-id="hyun_chia" tvg-name="hyun_chia" tvg-logo="https://booble.com/avatar/hyun_chia.jpeg" group-title="Girl",hyun_chia
-https://edge-hls.doppiocdn.media/ping.m3u8
+# Total    : 0
