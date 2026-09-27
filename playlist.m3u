@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-09-27 19:26:40 UTC
+# Updated  : 2026-09-27 22:23:44 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 0
+# Girls    : 1
 # Couples  : 0
-# Total    : 0
+# Total    : 1
+
+#EXTINF:-1 tvg-id="Lena_Blom" tvg-name="Lena_Blom" tvg-logo="https://booble.com/avatar/Lena_Blom.jpeg" group-title="Girl",Lena_Blom
+https://edge-hls.doppiocdn.media/ping.m3u8
