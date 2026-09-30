@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-09-30 18:44:05 UTC
+# Updated  : 2026-09-30 22:57:02 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 0
+# Girls    : 1
 # Couples  : 0
-# Total    : 0
+# Total    : 1
+
+#EXTINF:-1 tvg-id="LollyPollly" tvg-name="LollyPollly" tvg-logo="https://booble.com/avatar/LollyPollly.jpeg" group-title="Girl",LollyPollly
+https://edge-hls.doppiocdn.media/ping.m3u8
