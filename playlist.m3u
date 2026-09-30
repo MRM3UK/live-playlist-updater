@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-09-30 01:20:15 UTC
+# Updated  : 2026-09-30 06:35:29 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 1
+# Total    : 1
+
+#EXTINF:-1 tvg-id="LindaFarm" tvg-name="LindaFarm" tvg-logo="https://booble.com/avatar/LindaFarm.jpeg" group-title="Couple",LindaFarm
+https://edge-hls.doppiocdn.media/ping.m3u8
