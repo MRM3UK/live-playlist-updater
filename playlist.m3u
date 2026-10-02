@@ -1,10 +1,10 @@
 #EXTM3U
-# Updated  : 2026-10-01 20:27:20 UTC
+# Updated  : 2026-10-02 00:13:16 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
 # Couples  : 1
 # Total    : 1
 
-#EXTINF:-1 tvg-id="ZenZestX" tvg-name="ZenZestX" tvg-logo="https://booble.com/avatar/ZenZestX.jpeg" group-title="Couple",ZenZestX
+#EXTINF:-1 tvg-id="Gaby-Herrera" tvg-name="Gaby-Herrera" tvg-logo="https://booble.com/avatar/Gaby-Herrera.jpeg" group-title="Couple",Gaby-Herrera
 https://edge-hls.doppiocdn.media/ping.m3u8
