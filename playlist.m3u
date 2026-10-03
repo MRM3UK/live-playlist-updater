@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-10-02 20:54:08 UTC
+# Updated  : 2026-10-03 00:24:45 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 1
+# Total    : 1
+
+#EXTINF:-1 tvg-id="PAKOHIME" tvg-name="PAKOHIME" tvg-logo="https://booble.com/avatar/PAKOHIME.jpeg" group-title="Couple",PAKOHIME
+https://edge-hls.doppiocdn.media/ping.m3u8
