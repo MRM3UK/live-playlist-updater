@@ -1,10 +1,10 @@
 #EXTM3U
-# Updated  : 2026-10-06 00:56:02 UTC
+# Updated  : 2026-10-06 07:09:28 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 1
-# Couples  : 0
+# Girls    : 0
+# Couples  : 1
 # Total    : 1
 
-#EXTINF:-1 tvg-id="Pink_Kiss" tvg-name="Pink_Kiss" tvg-logo="https://booble.com/avatar/Pink_Kiss.jpeg" group-title="Girl",Pink_Kiss
+#EXTINF:-1 tvg-id="modenq" tvg-name="modenq" tvg-logo="https://booble.com/avatar/modenq.jpeg" group-title="Couple",modenq
 https://edge-hls.doppiocdn.media/ping.m3u8
