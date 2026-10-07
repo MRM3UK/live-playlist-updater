@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-10-07 03:02:35 UTC
+# Updated  : 2026-10-07 09:55:45 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 0
+# Girls    : 1
 # Couples  : 0
-# Total    : 0
+# Total    : 1
+
+#EXTINF:-1 tvg-id="Ambre_La_nebulleuse" tvg-name="Ambre_La_nebulleuse" tvg-logo="https://booble.com/avatar/Ambre_La_nebulleuse.jpeg" group-title="Girl",Ambre_La_nebulleuse
+https://edge-hls.doppiocdn.media/ping.m3u8
