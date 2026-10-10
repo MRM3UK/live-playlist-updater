@@ -1,10 +1,7 @@
 #EXTM3U
-# Updated  : 2026-10-10 03:00:02 UTC
+# Updated  : 2026-10-10 09:39:17 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 1
-# Total    : 1
-
-#EXTINF:-1 tvg-id="cherry_jerry" tvg-name="cherry_jerry" tvg-logo="https://booble.com/avatar/cherry_jerry.jpeg" group-title="Couple",cherry_jerry
-https://edge-hls.doppiocdn.media/ping.m3u8
+# Couples  : 0
+# Total    : 0
