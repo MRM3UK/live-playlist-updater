@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-10-15 06:12:18 UTC
+# Updated  : 2026-10-15 10:54:28 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 1
+# Total    : 1
+
+#EXTINF:-1 tvg-id="yaqing666" tvg-name="yaqing666" tvg-logo="https://booble.com/avatar/yaqing666.jpeg" group-title="Couple",yaqing666
+https://edge-hls.doppiocdn.media/ping.m3u8
