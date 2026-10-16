@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-10-16 15:11:03 UTC
+# Updated  : 2026-10-16 18:59:19 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 0
+# Girls    : 1
 # Couples  : 0
-# Total    : 0
+# Total    : 1
+
+#EXTINF:-1 tvg-id="sukidaa" tvg-name="sukidaa" tvg-logo="https://booble.com/avatar/sukidaa.jpeg" group-title="Girl",sukidaa
+https://edge-hls.doppiocdn.media/ping.m3u8
