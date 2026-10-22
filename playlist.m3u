@@ -1,7 +1,14 @@
 #EXTM3U
-# Updated  : 2026-10-22 20:18:57 UTC
+# Updated  : 2026-10-22 23:20:53 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 3
+# Total    : 3
+
+#EXTINF:-1 tvg-id="Kate-Paul" tvg-name="Kate-Paul" tvg-logo="https://booble.com/avatar/Kate-Paul.jpeg" group-title="Couple",Kate-Paul
+https://edge-hls.doppiocdn.media/ping.m3u8
+#EXTINF:-1 tvg-id="chichi_o" tvg-name="chichi_o" tvg-logo="https://booble.com/avatar/chichi_o.jpeg" group-title="Couple",chichi_o
+https://edge-hls.doppiocdn.media/ping.m3u8
+#EXTINF:-1 tvg-id="Kissme_Kira" tvg-name="Kissme_Kira" tvg-logo="https://booble.com/avatar/Kissme_Kira.jpeg" group-title="Couple",Kissme_Kira
+https://edge-hls.doppiocdn.media/ping.m3u8
