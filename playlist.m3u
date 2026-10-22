@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-10-22 01:31:58 UTC
+# Updated  : 2026-10-22 06:28:56 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 1
+# Total    : 1
+
+#EXTINF:-1 tvg-id="Sharon_07" tvg-name="Sharon_07" tvg-logo="https://booble.com/avatar/Sharon_07.jpeg" group-title="Couple",Sharon_07
+https://edge-hls.doppiocdn.media/ping.m3u8
