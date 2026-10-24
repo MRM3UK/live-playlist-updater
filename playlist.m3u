@@ -1,7 +1,12 @@
 #EXTM3U
-# Updated  : 2026-10-24 18:22:52 UTC
+# Updated  : 2026-10-24 20:25:17 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 2
+# Total    : 2
+
+#EXTINF:-1 tvg-id="LushRitu" tvg-name="LushRitu" tvg-logo="https://booble.com/avatar/LushRitu.jpeg" group-title="Couple",LushRitu
+https://edge-hls.doppiocdn.media/ping.m3u8
+#EXTINF:-1 tvg-id="Taylorlove303" tvg-name="Taylorlove303" tvg-logo="https://booble.com/avatar/Taylorlove303.jpeg" group-title="Couple",Taylorlove303
+https://edge-hls.doppiocdn.media/ping.m3u8
