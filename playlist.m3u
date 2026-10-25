@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-10-25 10:28:59 UTC
+# Updated  : 2026-10-25 14:39:13 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 0
+# Girls    : 1
 # Couples  : 0
-# Total    : 0
+# Total    : 1
+
+#EXTINF:-1 tvg-id="Valentina-gomezz" tvg-name="Valentina-gomezz" tvg-logo="https://booble.com/avatar/Valentina-gomezz.jpeg" group-title="Girl",Valentina-gomezz
+https://edge-hls.doppiocdn.media/ping.m3u8
