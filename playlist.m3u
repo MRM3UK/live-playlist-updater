@@ -1,10 +1,10 @@
 #EXTM3U
-# Updated  : 2026-10-24 22:46:38 UTC
+# Updated  : 2026-10-25 00:56:49 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 1
-# Couples  : 0
+# Girls    : 0
+# Couples  : 1
 # Total    : 1
 
-#EXTINF:-1 tvg-id="ORLA94" tvg-name="ORLA94" tvg-logo="https://booble.com/avatar/ORLA94.jpeg" group-title="Girl",ORLA94
+#EXTINF:-1 tvg-id="LAURA_VANESA" tvg-name="LAURA_VANESA" tvg-logo="https://booble.com/avatar/LAURA_VANESA.jpeg" group-title="Couple",LAURA_VANESA
 https://edge-hls.doppiocdn.media/ping.m3u8
