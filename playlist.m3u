@@ -1,10 +1,12 @@
 #EXTM3U
-# Updated  : 2026-10-27 18:54:47 UTC
+# Updated  : 2026-10-27 23:00:45 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 1
-# Total    : 1
+# Couples  : 2
+# Total    : 2
 
-#EXTINF:-1 tvg-id="Miu-Gcup" tvg-name="Miu-Gcup" tvg-logo="https://booble.com/avatar/Miu-Gcup.jpeg" group-title="Couple",Miu-Gcup
+#EXTINF:-1 tvg-id="Juanita-Diaz" tvg-name="Juanita-Diaz" tvg-logo="https://booble.com/avatar/Juanita-Diaz.jpeg" group-title="Couple",Juanita-Diaz
+https://edge-hls.doppiocdn.media/ping.m3u8
+#EXTINF:-1 tvg-id="BLANCA__NIEVES" tvg-name="BLANCA__NIEVES" tvg-logo="https://booble.com/avatar/BLANCA__NIEVES.jpeg" group-title="Couple",BLANCA__NIEVES
 https://edge-hls.doppiocdn.media/ping.m3u8
