@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-10-27 13:16:17 UTC
+# Updated  : 2026-10-27 18:54:47 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 1
+# Total    : 1
+
+#EXTINF:-1 tvg-id="Miu-Gcup" tvg-name="Miu-Gcup" tvg-logo="https://booble.com/avatar/Miu-Gcup.jpeg" group-title="Couple",Miu-Gcup
+https://edge-hls.doppiocdn.media/ping.m3u8
