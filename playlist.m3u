@@ -1,12 +1,7 @@
 #EXTM3U
-# Updated  : 2026-10-27 23:00:45 UTC
+# Updated  : 2026-10-28 02:21:31 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 2
-# Total    : 2
-
-#EXTINF:-1 tvg-id="Juanita-Diaz" tvg-name="Juanita-Diaz" tvg-logo="https://booble.com/avatar/Juanita-Diaz.jpeg" group-title="Couple",Juanita-Diaz
-https://edge-hls.doppiocdn.media/ping.m3u8
-#EXTINF:-1 tvg-id="BLANCA__NIEVES" tvg-name="BLANCA__NIEVES" tvg-logo="https://booble.com/avatar/BLANCA__NIEVES.jpeg" group-title="Couple",BLANCA__NIEVES
-https://edge-hls.doppiocdn.media/ping.m3u8
+# Couples  : 0
+# Total    : 0
