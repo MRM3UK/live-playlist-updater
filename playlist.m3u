@@ -1,10 +1,10 @@
 #EXTM3U
-# Updated  : 2026-11-02 03:10:00 UTC
+# Updated  : 2026-11-02 10:35:18 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 1
 # Couples  : 0
 # Total    : 1
 
-#EXTINF:-1 tvg-id="Ella_lee15" tvg-name="Ella_lee15" tvg-logo="https://booble.com/avatar/Ella_lee15.jpeg" group-title="Girl",Ella_lee15
+#EXTINF:-1 tvg-id="ellaxxstar" tvg-name="ellaxxstar" tvg-logo="https://booble.com/avatar/ellaxxstar.jpeg" group-title="Girl",ellaxxstar
 https://edge-hls.doppiocdn.media/ping.m3u8
