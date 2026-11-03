@@ -1,10 +1,10 @@
 #EXTM3U
-# Updated  : 2026-11-03 10:40:31 UTC
+# Updated  : 2026-11-03 18:29:33 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 1
-# Couples  : 0
+# Girls    : 0
+# Couples  : 1
 # Total    : 1
 
-#EXTINF:-1 tvg-id="FlashTitsRoyal" tvg-name="FlashTitsRoyal" tvg-logo="https://booble.com/avatar/FlashTitsRoyal.jpeg" group-title="Girl",FlashTitsRoyal
+#EXTINF:-1 tvg-id="DulceCaroX" tvg-name="DulceCaroX" tvg-logo="https://booble.com/avatar/DulceCaroX.jpeg" group-title="Couple",DulceCaroX
 https://edge-hls.doppiocdn.media/ping.m3u8
