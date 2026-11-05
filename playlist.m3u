@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-11-05 04:19:59 UTC
+# Updated  : 2026-11-05 12:10:53 UTC
 # Source   : booble.com
 # Favs     : 0
 # Girls    : 0
-# Couples  : 0
-# Total    : 0
+# Couples  : 1
+# Total    : 1
+
+#EXTINF:-1 tvg-id="lucy-joy" tvg-name="lucy-joy" tvg-logo="https://booble.com/avatar/lucy-joy.jpeg" group-title="Couple",lucy-joy
+https://edge-hls.doppiocdn.media/ping.m3u8
