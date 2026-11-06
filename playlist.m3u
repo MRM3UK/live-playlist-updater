@@ -1,7 +1,10 @@
 #EXTM3U
-# Updated  : 2026-11-05 19:36:19 UTC
+# Updated  : 2026-11-06 00:58:06 UTC
 # Source   : booble.com
 # Favs     : 0
-# Girls    : 0
+# Girls    : 1
 # Couples  : 0
-# Total    : 0
+# Total    : 1
+
+#EXTINF:-1 tvg-id="Carolini09" tvg-name="Carolini09" tvg-logo="https://booble.com/avatar/Carolini09.jpeg" group-title="Girl",Carolini09
+https://edge-hls.doppiocdn.media/ping.m3u8
